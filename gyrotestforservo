@@ -1,31 +1,27 @@
+#!/usr/bin/python
 import smbus
 import math
 import os
 from time import sleep
-import RPi.GPIO as GPIO  # For controlling servos sg90s?
-
+import RPi.GPIO as GPIO  # For controlling servos
 
 # Register
 power_mgmt_1 = 0x6b
 power_mgmt_2 = 0x6c
 
-
 # Servo GPIO pins
 SERVO_PAN_PIN = 18   # GPIO pin for pan servo (left-right)
 SERVO_TILT_PIN = 19  # GPIO pin for tilt servo (up-down)
 
-
 # MPU6050 Functions
 def read_byte(reg):
     return bus.read_byte_data(address, reg)
-
 
 def read_word(reg):
     h = bus.read_byte_data(address, reg)
     l = bus.read_byte_data(address, reg + 1)
     value = (h << 8) + l
     return value
-
 
 def read_word_2c(reg):
     val = read_word(reg)
@@ -34,39 +30,22 @@ def read_word_2c(reg):
     else:
         return val
 
-
-def dist(a, b):
-    return math.sqrt((a * a) + (b * b))
-
-
-def get_y_rotation(x, y, z):
-    radians = math.atan2(x, dist(y, z))
-    return -math.degrees(radians)
-
-
-def get_x_rotation(x, y, z):
-    radians = math.atan2(y, dist(x, z))
-    return math.degrees(radians)
-
-
 # Map angle to servo duty cycle
 def map_angle_to_duty(angle):
+    # Convert angle (-90 to +90 degrees) to duty cycle (2.5% to 12.5%)
     min_duty = 2.5  # Duty cycle for -90 degrees
     max_duty = 12.5  # Duty cycle for +90 degrees
     return min_duty + (angle + 90) * (max_duty - min_duty) / 180
-
 
 # Setup I2C communication
 bus = smbus.SMBus(1)
 address = 0x68  # MPU6050 I2C address
 bus.write_byte_data(address, power_mgmt_1, 0)  # Wake up MPU6050
 
-
 # Setup GPIO for servos
 GPIO.setmode(GPIO.BCM)
 GPIO.setup(SERVO_PAN_PIN, GPIO.OUT)
 GPIO.setup(SERVO_TILT_PIN, GPIO.OUT)
-
 
 # Initialize PWM for servos
 pwm_pan = GPIO.PWM(SERVO_PAN_PIN, 50)  # 50Hz for pan servo
@@ -74,55 +53,44 @@ pwm_tilt = GPIO.PWM(SERVO_TILT_PIN, 50)  # 50Hz for tilt servo
 pwm_pan.start(7.5)  # Neutral position
 pwm_tilt.start(7.5)  # Neutral position
 
+# Initial angles (start at neutral position)
+x_angle = 0.0
+y_angle = 0.0
+
+# Time interval for integration
+dt = 0.1  # 100ms loop delay
 
 # Main loop
 try:
     while True:
-        # Read gyroscope and accelerometer data
-        gyroscope_x = read_word_2c(0x43)
-        gyroscope_y = read_word_2c(0x45)
-        gyroscope_z = read_word_2c(0x47)
+        # Read gyroscope data
+        gyro_x = read_word_2c(0x43) / 131.0  # Scale factor for gyroscope
+        gyro_y = read_word_2c(0x45) / 131.0
+        gyro_z = read_word_2c(0x47) / 131.0
 
+        # Integrate gyroscope data to calculate angles
+        x_angle += gyro_x * dt
+        y_angle += gyro_y * dt
 
-        acceleration_x = read_word_2c(0x3b)
-        acceleration_y = read_word_2c(0x3d)
-        acceleration_z = read_word_2c(0x3f)
+        # Keep angles within -90 to +90 range
+        x_angle = max(min(x_angle, 90), -90)
+        y_angle = max(min(y_angle, 90), -90)
 
-
-        # Scale accelerometer data
-        acceleration_x_scaled = acceleration_x / 16384.0
-        acceleration_y_scaled = acceleration_y / 16384.0
-        acceleration_z_scaled = acceleration_z / 16384.0
-
-
-        # Calculate rotation angles
-        x_rotation = get_x_rotation(acceleration_x_scaled, acceleration_y_scaled, acceleration_z_scaled)
-        y_rotation = get_y_rotation(acceleration_x_scaled, acceleration_y_scaled, acceleration_z_scaled)
-
-
-        # Map rotation angles to servo duty cycles
-        pan_duty = map_angle_to_duty(y_rotation)
-        tilt_duty = map_angle_to_duty(x_rotation)
-
+        # Map integrated angles to servo duty cycles
+        pan_duty = map_angle_to_duty(y_angle)
+        tilt_duty = map_angle_to_duty(x_angle)
 
         # Set servo positions
         pwm_pan.ChangeDutyCycle(pan_duty)
         pwm_tilt.ChangeDutyCycle(tilt_duty)
 
-
         # Debug information
-        print("Gyroscope")
-        print("--------")
-        print("X Rotation: ", x_rotation)
-        print("Y Rotation: ", y_rotation)
-        print("Pan Duty Cycle: ", pan_duty)
-        print("Tilt Duty Cycle: ", tilt_duty)
+        print(f"Gyroscope: X={gyro_x}, Y={gyro_y}, Z={gyro_z}")
+        print(f"Integrated Angles: X={x_angle}, Y={y_angle}")
+        print(f"Servo Duty Cycles: Pan={pan_duty}, Tilt={tilt_duty}")
 
-
-        # Clear the terminal and delay
-        os.system('cls' if os.name == 'nt' else 'clear')
-        sleep(0.1)
-
+        # Wait for the next update
+        sleep(dt)
 
 except KeyboardInterrupt:
     print("Exiting program...")
