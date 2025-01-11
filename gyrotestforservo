@@ -1,3 +1,4 @@
+#!/usr/bin/python
 import smbus
 import math
 import RPi.GPIO as GPIO
@@ -49,7 +50,7 @@ def get_y_rotation(x, y, z):
 
 def map_angle_to_duty_cycle(angle):
     # Map -90° to +90° to 2.5% to 12.5%
-    return 7.5 + (angle / 90) * 5
+    return max(2.5, min(12.5, 7.5 + (angle / 90) * 5))
 
 # Main loop
 try:
@@ -79,7 +80,7 @@ try:
         print(f"X Rotation: {x_rotation:.2f}°, Y Rotation: {y_rotation:.2f}°")
         print(f"Servo X Duty: {duty_cycle_x:.2f}%, Servo Y Duty: {duty_cycle_y:.2f}%")
 
-        sleep(0.1)
+        sleep(0.05)  # Short delay for stability
 
 except KeyboardInterrupt:
     servo_x.stop()
