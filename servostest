@@ -1,42 +1,57 @@
 import RPi.GPIO as GPIO
 import time
 
-# Suppress GPIO warnings
+# Suppress warnings if pins were previously used
 GPIO.setwarnings(False)
 
-# Set up GPIO using physical pin numbering
+# Use BOARD numbering for pin layout
 GPIO.setmode(GPIO.BOARD)
 
-# Define pins for servos
-SERVO_X_PIN = 7    # GPIO 4 (Physical pin 7)
-SERVO_Y_PIN = 13   # GPIO 27 (Physical pin 13)
+# Define GPIO pins for the servos
+SERVO_X_PIN = 7  # GPIO 4, Physical Pin 7
+SERVO_Y_PIN = 13  # GPIO 27, Physical Pin 13
 
-# Set up pins as output
+# Set up GPIO pins as output
 GPIO.setup(SERVO_X_PIN, GPIO.OUT)
 GPIO.setup(SERVO_Y_PIN, GPIO.OUT)
 
-# Initialize PWM for both servos
-servo_x = GPIO.PWM(SERVO_X_PIN, 50)  # 50Hz for Servo X
-servo_y = GPIO.PWM(SERVO_Y_PIN, 50)  # 50Hz for Servo Y
+# Initialize PWM on each servo pin at 50Hz
+servo_x = GPIO.PWM(SERVO_X_PIN, 50)  # Servo X (horizontal movement)
+servo_y = GPIO.PWM(SERVO_Y_PIN, 50)  # Servo Y (vertical movement)
 
-# Start PWM at neutral position
+# Start both servos at the neutral position (7.5%)
 servo_x.start(7.5)
 servo_y.start(7.5)
 
 try:
     while True:
-        # Move Servo X and Servo Y to various positions
-        print("Moving servos...")
-        servo_x.ChangeDutyCycle(12.5)  # Servo X: Max position
-        servo_y.ChangeDutyCycle(2.5)   # Servo Y: Min position
+        # Move both servos to their maximum positions
+        print("Moving both servos to maximum positions...")
+        servo_x.ChangeDutyCycle(12.5)  # Max position for Servo X
+        servo_y.ChangeDutyCycle(12.5)  # Max position for Servo Y
         time.sleep(1)
 
-        servo_x.ChangeDutyCycle(7.5)   # Servo X: Neutral position
-        servo_y.ChangeDutyCycle(7.5)   # Servo Y: Neutral position
+        # Move both servos back to their neutral positions
+        print("Moving both servos to neutral positions...")
+        servo_x.ChangeDutyCycle(7.5)  # Neutral position for Servo X
+        servo_y.ChangeDutyCycle(7.5)  # Neutral position for Servo Y
+        time.sleep(1)
+
+        # Move both servos to their minimum positions
+        print("Moving both servos to minimum positions...")
+        servo_x.ChangeDutyCycle(2.5)  # Min position for Servo X
+        servo_y.ChangeDutyCycle(2.5)  # Min position for Servo Y
+        time.sleep(1)
+
+        # Reset both servos to their neutral positions again
+        print("Resetting both servos to neutral positions...")
+        servo_x.ChangeDutyCycle(7.5)  # Neutral position for Servo X
+        servo_y.ChangeDutyCycle(7.5)  # Neutral position for Servo Y
         time.sleep(1)
 
 except KeyboardInterrupt:
-    # Stop PWM and clean up
+    # Stop PWM signals and clean up GPIO settings when exiting
+    print("Exiting program and cleaning up...")
     servo_x.stop()
     servo_y.stop()
     GPIO.cleanup()
