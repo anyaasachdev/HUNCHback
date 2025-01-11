@@ -1,54 +1,41 @@
-#!/usr/bin/python
 import smbus
 import math
-import os
 import RPi.GPIO as GPIO
 from time import sleep
 
-# Register addresses for MPU6050
-power_mgmt_1 = 0x6b
-power_mgmt_2 = 0x6c
-
-# Define GPIO pins for the servos
-SERVO_X_PIN = 12  # GPIO 12 (Physical Pin 32)
-SERVO_Y_PIN = 13  # GPIO 13 (Physical Pin 33)
-
-# Set up GPIO pins as output
-GPIO.setwarnings(False)
+# GPIO setup
 GPIO.setmode(GPIO.BOARD)
+
+# Servo pins
+SERVO_X_PIN = 7  # Servo for X-axis
+SERVO_Y_PIN = 11 # Servo for Y-axis
+
+# Setup servos
 GPIO.setup(SERVO_X_PIN, GPIO.OUT)
 GPIO.setup(SERVO_Y_PIN, GPIO.OUT)
 
-# Initialize PWM on each servo pin at 50Hz
-servo_x = GPIO.PWM(SERVO_X_PIN, 50)  # Servo X (horizontal movement)
-servo_y = GPIO.PWM(SERVO_Y_PIN, 50)  # Servo Y (vertical movement)
+servo_x = GPIO.PWM(SERVO_X_PIN, 50)  # 50Hz frequency
+servo_y = GPIO.PWM(SERVO_Y_PIN, 50)
 
-# Start both servos at the neutral position (7.5%)
-servo_x.start(7.5)
+servo_x.start(7.5)  # Start at neutral position
 servo_y.start(7.5)
 
-# Setup I2C (bus 1) and MPU6050 address
+# Gyroscope setup
+power_mgmt_1 = 0x6b
+power_mgmt_2 = 0x6c
+
 bus = smbus.SMBus(1)
-address = 0x68
+address = 0x68  # I2C address of MPU6050
+bus.write_byte_data(address, power_mgmt_1, 0)  # Wake up MPU6050
 
-# Wake up the MPU6050 (write 0 to the power management register)
-bus.write_byte_data(address, power_mgmt_1, 0)
-
-# Function to read the bytes from the sensor
-def read_word(reg):
-    h = bus.read_byte_data(address, reg)
-    l = bus.read_byte_data(address, reg + 1)
-    value = (h << 8) + l
-    return value
-
+# Helper functions
 def read_word_2c(reg):
-    val = read_word(reg)
+    val = (bus.read_byte_data(address, reg) << 8) + bus.read_byte_data(address, reg + 1)
     if val >= 0x8000:
         return -((65535 - val) + 1)
     else:
         return val
 
-# Function to calculate rotation angles based on accelerometer data
 def dist(a, b):
     return math.sqrt((a * a) + (b * b))
 
@@ -60,47 +47,41 @@ def get_y_rotation(x, y, z):
     radians = math.atan2(x, dist(y, z))
     return -math.degrees(radians)
 
-# Main loop to read data and control the servos
+def map_angle_to_duty_cycle(angle):
+    # Map -90° to +90° to 2.5% to 12.5%
+    return 7.5 + (angle / 90) * 5
+
+# Main loop
 try:
     while True:
-        # Read accelerometer data (X, Y, Z)
-        acceleration_x = read_word_2c(0x3b)
-        acceleration_y = read_word_2c(0x3d)
-        acceleration_z = read_word_2c(0x3f)
+        # Read accelerometer data
+        accel_x = read_word_2c(0x3b)
+        accel_y = read_word_2c(0x3d)
+        accel_z = read_word_2c(0x3f)
 
-        # Scale the accelerometer values
-        acceleration_x_scaled = acceleration_x / 16384.0
-        acceleration_y_scaled = acceleration_y / 16384.0
-        acceleration_z_scaled = acceleration_z / 16384.0
+        accel_x_scaled = accel_x / 16384.0
+        accel_y_scaled = accel_y / 16384.0
+        accel_z_scaled = accel_z / 16384.0
 
-        # Get rotation values (X and Y)
-        x_rotation = get_x_rotation(acceleration_x_scaled, acceleration_y_scaled, acceleration_z_scaled)
-        y_rotation = get_y_rotation(acceleration_x_scaled, acceleration_y_scaled, acceleration_z_scaled)
+        # Calculate rotation angles
+        x_rotation = get_x_rotation(accel_x_scaled, accel_y_scaled, accel_z_scaled)
+        y_rotation = get_y_rotation(accel_x_scaled, accel_y_scaled, accel_z_scaled)
 
-        # Print rotation values for debugging
-        print(f"X Rotation: {x_rotation}")
-        print(f"Y Rotation: {y_rotation}")
+        # Map rotation to servo duty cycles
+        duty_cycle_x = map_angle_to_duty_cycle(x_rotation)
+        duty_cycle_y = map_angle_to_duty_cycle(y_rotation)
 
-        # Map the rotation values to servo positions (Duty Cycle)
-        # The values of x_rotation and y_rotation will be between -90 and 90
-        # We map this to the PWM duty cycle range (2.5 to 12.5 for 0° to 180°)
-        servo_x_position = 7.5 + (x_rotation / 90) * 5  # Map X rotation to servo position
-        servo_y_position = 7.5 + (y_rotation / 90) * 5  # Map Y rotation to servo position
+        # Move servos
+        servo_x.ChangeDutyCycle(duty_cycle_x)
+        servo_y.ChangeDutyCycle(duty_cycle_y)
 
-        # Limit the values to the acceptable range (2.5 to 12.5)
-        servo_x_position = max(2.5, min(12.5, servo_x_position))
-        servo_y_position = max(2.5, min(12.5, servo_y_position))
+        # Debug output
+        print(f"X Rotation: {x_rotation:.2f}°, Y Rotation: {y_rotation:.2f}°")
+        print(f"Servo X Duty: {duty_cycle_x:.2f}%, Servo Y Duty: {duty_cycle_y:.2f}%")
 
-        # Update the servo positions
-        servo_x.ChangeDutyCycle(servo_x_position)
-        servo_y.ChangeDutyCycle(servo_y_position)
-
-        # Sleep for a short time before reading again
         sleep(0.1)
 
 except KeyboardInterrupt:
-    # Stop PWM signals and clean up GPIO settings when exiting
-    print("Exiting program and cleaning up...")
     servo_x.stop()
     servo_y.stop()
     GPIO.cleanup()
