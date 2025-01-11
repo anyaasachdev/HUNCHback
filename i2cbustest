@@ -1,0 +1,22 @@
+import time
+import board
+import busio
+
+
+i2c = busio.I2C(board.SCL, board.SDA)
+
+
+while not i2c.try_lock():
+    pass
+
+
+try:
+    print("Scanning I2C bus...")
+    devices = i2c.scan()
+    if devices:
+        for device in devices:
+            print(f"Device found at address: 0x{device:02x}")
+    else:
+        print("No I2C devices found.")
+finally:
+    i2c.unlock
