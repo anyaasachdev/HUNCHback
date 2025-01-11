@@ -8,20 +8,20 @@ import os
 power_mgmt_1 = 0x6b
 power_mgmt_2 = 0x6c
 
-# Setup for Servo Control (Pins 4 and 13)
+# Setup for Servo Control (Using GPIO 12 for PWM and GPIO 13 for PWM)
 GPIO.setmode(GPIO.BOARD)
-SERVO1_PIN = 4  # Servo X Pin
-SERVO2_PIN = 13  # Servo Y Pin
+SERVO1_PIN = 12  # GPIO pin for Servo 1 (X-axis) - Physical Pin 16 (GPIO 12 supports PWM)
+SERVO2_PIN = 13  # GPIO pin for Servo 2 (Y-axis) - Physical Pin 33 (GPIO 13 supports PWM)
 GPIO.setup(SERVO1_PIN, GPIO.OUT)
 GPIO.setup(SERVO2_PIN, GPIO.OUT)
 
 # Set up PWM for the servos
-servo1 = GPIO.PWM(SERVO1_PIN, 50)
-servo2 = GPIO.PWM(SERVO2_PIN, 50)
+servo1 = GPIO.PWM(SERVO1_PIN, 50)  # 50Hz for standard servos (GPIO 12 supports PWM)
+servo2 = GPIO.PWM(SERVO2_PIN, 50)  # 50Hz for standard servos (GPIO 13 supports PWM)
 
 # Start servos at neutral position (7.5%)
 servo1.start(7.5)
-servo2.start(7.5)
+servo2.start(7.5)  
 
 # Setup for I2C Communication
 bus = smbus.SMBus(1)
