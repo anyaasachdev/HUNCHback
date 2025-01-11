@@ -1,13 +1,42 @@
 import RPi.GPIO as GPIO
 import time
 
+# Suppress GPIO warnings
+GPIO.setwarnings(False)
+
+# Set up GPIO using physical pin numbering
 GPIO.setmode(GPIO.BOARD)
 
+# Define pins for servos
+SERVO_X_PIN = 7    # GPIO 4 (Physical pin 7)
+SERVO_Y_PIN = 13   # GPIO 27 (Physical pin 13)
+
+# Set up pins as output
+GPIO.setup(SERVO_X_PIN, GPIO.OUT)
+GPIO.setup(SERVO_Y_PIN, GPIO.OUT)
+
+# Initialize PWM for both servos
+servo_x = GPIO.PWM(SERVO_X_PIN, 50)  # 50Hz for Servo X
+servo_y = GPIO.PWM(SERVO_Y_PIN, 50)  # 50Hz for Servo Y
+
+# Start PWM at neutral position
+servo_x.start(7.5)
+servo_y.start(7.5)
+
 try:
-    GPIO.setup(7, GPIO.OUT)  # Test physical pin 7 (GPIO 4)
-    GPIO.setup(33, GPIO.OUT)  # Test physical pin 33 (GPIO 13)
-    print("Pins are free to use!")
-except RuntimeError as e:
-    print(f"Error: {e}")
-finally:
+    while True:
+        # Move Servo X and Servo Y to various positions
+        print("Moving servos...")
+        servo_x.ChangeDutyCycle(12.5)  # Servo X: Max position
+        servo_y.ChangeDutyCycle(2.5)   # Servo Y: Min position
+        time.sleep(1)
+
+        servo_x.ChangeDutyCycle(7.5)   # Servo X: Neutral position
+        servo_y.ChangeDutyCycle(7.5)   # Servo Y: Neutral position
+        time.sleep(1)
+
+except KeyboardInterrupt:
+    # Stop PWM and clean up
+    servo_x.stop()
+    servo_y.stop()
     GPIO.cleanup()
