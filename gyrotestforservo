@@ -7,17 +7,15 @@ from time import sleep
 GPIO.setmode(GPIO.BOARD)
 
 # Servo pins
-SERVO_X_PIN = 7  # Servo for X-axis
-SERVO_Y_PIN = 11 # Servo for Y-axis
+SERVO_Y_PIN = 33 # Servo for Y-axis
 
 # Setup servos
-GPIO.setup(SERVO_X_PIN, GPIO.OUT)
 GPIO.setup(SERVO_Y_PIN, GPIO.OUT)
 
-servo_x = GPIO.PWM(SERVO_X_PIN, 50)  # 50Hz frequency
+# 50Hz frequency
 servo_y = GPIO.PWM(SERVO_Y_PIN, 50)
 
-servo_x.start(7.5)  # Start at neutral position
+# Start at neutral position
 servo_y.start(7.5)
 
 # Gyroscope setup
@@ -72,7 +70,6 @@ try:
         duty_cycle_y = map_angle_to_duty_cycle(y_rotation)
 
         # Move servos
-        servo_x.ChangeDutyCycle(duty_cycle_x)
         servo_y.ChangeDutyCycle(duty_cycle_y)
 
         # Debug output
