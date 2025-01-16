@@ -1,0 +1,32 @@
+import time
+from picamera2 import Picamera2
+from PIL import Image
+
+# Initialize the camera
+picam2 = Picamera2()
+
+# Start the camera
+picam2.start()
+
+# Interval between pictures in seconds
+interval = 5
+
+# Continuously take pictures until manually stopped
+try:
+    count = 0
+    while True:
+        count += 1
+        filename = f"test_{count}.jpg"  # Create a unique filename for each picture
+        picam2.capture_file(filename)    # Capture and save the picture
+        print(f"Captured {filename}")
+        
+        # Open and preview the captured image
+        img = Image.open(filename)
+        img.show()
+        
+        time.sleep(interval)  # Wait for the specified interval
+except KeyboardInterrupt:
+    print("Stopping capture...")
+
+# Stop the camera
+picam2.stop()
