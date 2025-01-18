@@ -1,46 +1,46 @@
-﻿import RPi.GPIO as GPIO
+import RPi.GPIO as GPIO
 import time
 
-
 # Pin configuration
-servo_pin = 17  # Use GPIO 17 for the servo signal
-
+servo1_pin = 6   # First servo signal pin
+servo2_pin = 17  # Second servo signal pin
 
 # Initialize GPIO
 GPIO.setmode(GPIO.BCM)  # Use BCM numbering
-GPIO.setup(servo_pin, GPIO.OUT)
+GPIO.setup(servo1_pin, GPIO.OUT)
+GPIO.setup(servo2_pin, GPIO.OUT)
 
+# Create PWM instances with a 50Hz frequency
+pwm1 = GPIO.PWM(servo1_pin, 50)  # Servo 1 PWM
+pwm2 = GPIO.PWM(servo2_pin, 50)  # Servo 2 PWM
 
-# Create PWM instance with a 50Hz frequency
-pwm = GPIO.PWM(servo_pin, 50)  # 50Hz is a common frequency for servos
-
-
-# Start PWM with a neutral signal (stop rotation)
-pwm.start(7.5)  # Neutral duty cycle to stop the servo
-
+# Start both servos with a neutral signal (stop rotation)
+pwm1.start(7.5)  # Neutral duty cycle for Servo 1
+pwm2.start(7.5)  # Neutral duty cycle for Servo 2
 
 try:
     while True:
         # Rotate clockwise
         print("Rotating clockwise...")
-        pwm.ChangeDutyCycle(6)  # Adjust the duty cycle for your servo
+        pwm1.ChangeDutyCycle(6)  # Adjust duty cycle for clockwise rotation
+        pwm2.ChangeDutyCycle(6)  # Ensure both servos rotate in sync
         time.sleep(2)
-
 
         # Rotate counterclockwise
         print("Rotating counterclockwise...")
-        pwm.ChangeDutyCycle(9)  # Adjust the duty cycle for your servo
+        pwm1.ChangeDutyCycle(9)  # Adjust duty cycle for counterclockwise rotation
+        pwm2.ChangeDutyCycle(9)  # Ensure both servos rotate in sync
         time.sleep(2)
-
 
         # Stop rotation
         print("Stopping...")
-        pwm.ChangeDutyCycle(7.5)  # Neutral signal to stop the servo
+        pwm1.ChangeDutyCycle(7.5)  # Neutral signal to stop Servo 1
+        pwm2.ChangeDutyCycle(7.5)  # Neutral signal to stop Servo 2
         time.sleep(2)
 except KeyboardInterrupt:
-    print("Exiting program...")
-
+    print("\nExiting program...")
 
 # Clean up GPIO
-pwm.stop()
+pwm1.stop()
+pwm2.stop()
 GPIO.cleanup()
