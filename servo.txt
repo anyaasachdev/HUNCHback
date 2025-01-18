@@ -1,0 +1,46 @@
+﻿import RPi.GPIO as GPIO
+import time
+
+
+# Pin configuration
+servo_pin = 17  # Use GPIO 17 for the servo signal
+
+
+# Initialize GPIO
+GPIO.setmode(GPIO.BCM)  # Use BCM numbering
+GPIO.setup(servo_pin, GPIO.OUT)
+
+
+# Create PWM instance with a 50Hz frequency
+pwm = GPIO.PWM(servo_pin, 50)  # 50Hz is a common frequency for servos
+
+
+# Start PWM with a neutral signal (stop rotation)
+pwm.start(7.5)  # Neutral duty cycle to stop the servo
+
+
+try:
+    while True:
+        # Rotate clockwise
+        print("Rotating clockwise...")
+        pwm.ChangeDutyCycle(6)  # Adjust the duty cycle for your servo
+        time.sleep(2)
+
+
+        # Rotate counterclockwise
+        print("Rotating counterclockwise...")
+        pwm.ChangeDutyCycle(9)  # Adjust the duty cycle for your servo
+        time.sleep(2)
+
+
+        # Stop rotation
+        print("Stopping...")
+        pwm.ChangeDutyCycle(7.5)  # Neutral signal to stop the servo
+        time.sleep(2)
+except KeyboardInterrupt:
+    print("Exiting program...")
+
+
+# Clean up GPIO
+pwm.stop()
+GPIO.cleanup()
