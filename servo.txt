@@ -20,23 +20,11 @@ pwm2.start(7.5)  # Neutral duty cycle for Servo 2
 
 try:
     while True:
-        # Rotate clockwise
         print("Rotating clockwise...")
         pwm1.ChangeDutyCycle(6)  # Adjust duty cycle for clockwise rotation
-        pwm2.ChangeDutyCycle(6)  # Ensure both servos rotate in sync
-        time.sleep(2)
-
-        # Rotate counterclockwise
-        print("Rotating counterclockwise...")
-        pwm1.ChangeDutyCycle(9)  # Adjust duty cycle for counterclockwise rotation
         pwm2.ChangeDutyCycle(9)  # Ensure both servos rotate in sync
         time.sleep(2)
 
-        # Stop rotation
-        print("Stopping...")
-        pwm1.ChangeDutyCycle(7.5)  # Neutral signal to stop Servo 1
-        pwm2.ChangeDutyCycle(7.5)  # Neutral signal to stop Servo 2
-        time.sleep(2)
 except KeyboardInterrupt:
     print("\nExiting program...")
 
