@@ -1,0 +1,42 @@
+﻿import time
+from picamera2 import Picamera2
+from PIL import Image
+import datetime
+import atexit
+
+
+# Initialize the camera
+picam2 = Picamera2()
+
+
+# Start the camera
+picam2.start()
+atexit.register(picam2.stop)  # Ensure camera stops on exit
+
+
+# Interval between pictures in seconds
+interval = 5
+
+
+# Continuously take pictures until manually stopped
+try:
+    count = 0
+    while True:
+        count += 1
+        
+        # Create a unique filename with timestamp
+        timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
+        filename = f"test_{timestamp}_{count}.jpg"
+        
+        # Capture and save the picture
+        picam2.capture_file(filename)
+        print(f"Captured {filename}")
+        
+        # (Optional) Preview the captured image
+        # Uncomment the lines below if image previews are necessary
+        # img = Image.open(filename)
+        # img.show()
+        
+        time.sleep(interval)  # Wait for the specified interval
+except KeyboardInterrupt:
+    print("\nStopping capture...")
