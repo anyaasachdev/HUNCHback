@@ -1,0 +1,242 @@
+﻿Here is the complete step-by-step guide to set up your Raspberry Pi as a wireless access point that hosts a secured photo server requiring a login.
+________________
+
+
+1. Hardware Setup
+Connect the Camera
+1. Locate the CSI camera port on your Raspberry Pi.
+2. Gently lift the connector latch and insert the camera ribbon cable.
+   * Ensure the metal contacts on the cable face the Raspberry Pi's circuit board.
+3. Secure the latch.
+Power Your Raspberry Pi
+* Connect the Raspberry Pi to a reliable battery pack or power supply.
+________________
+
+
+2. Configure the Raspberry Pi as a Wireless Access Point
+Install Required Software
+1. Open the terminal on your Raspberry Pi.
+Update the system and install required packages:
+bash
+CopyEdit
+sudo apt update
+sudo apt upgrade -y
+sudo apt install -y hostapd dnsmasq
+2. Enable and Configure the Wi-Fi Access Point
+Enable hostapd:
+bash
+CopyEdit
+sudo systemctl unmask hostapd
+sudo systemctl enable hostapd
+1. Configure a static IP for the Raspberry Pi:
+bash
+CopyEdit
+sudo nano /etc/dhcpcd.conf
+Add these lines at the end:
+java
+CopyEdit
+interface wlan0
+static ip_address=192.168.4.1/24
+nohook wpa_supplicant
+2. Save and exit (Ctrl+O, then Ctrl+X).
+Restart the DHCP service:
+bash
+CopyEdit
+sudo systemctl restart dhcpcd
+3. Configure DHCP Server
+Backup the existing dnsmasq configuration:
+bash
+CopyEdit
+sudo mv /etc/dnsmasq.conf /etc/dnsmasq.conf.orig
+1. Create a new configuration file:
+bash
+CopyEdit
+sudo nano /etc/dnsmasq.conf
+2. Add the following lines:
+go
+CopyEdit
+interface=wlan0
+dhcp-range=192.168.4.2,192.168.4.20,255.255.255.0,24h
+3. 4. Save and exit (Ctrl+O, then Ctrl+X).
+Configure hostapd
+Create the configuration file for hostapd:
+bash
+CopyEdit
+sudo nano /etc/hostapd/hostapd.conf
+1. Add the following:
+makefile
+CopyEdit
+interface=wlan0
+driver=nl80211
+ssid=PiRobotAP
+hw_mode=g
+channel=7
+wmm_enabled=0
+macaddr_acl=0
+auth_algs=1
+ignore_broadcast_ssid=0
+wpa=2
+wpa_passphrase=YourSecurePassword
+wpa_key_mgmt=WPA-PSK
+rsn_pairwise=CCMP
+2. Replace YourSecurePassword with your desired Wi-Fi password.
+Link the configuration file:
+bash
+CopyEdit
+sudo nano /etc/default/hostapd
+Update the line:
+makefile
+CopyEdit
+DAEMON_CONF="/etc/hostapd/hostapd.conf"
+3. Start the services:
+bash
+CopyEdit
+sudo systemctl start hostapd
+sudo systemctl start dnsmasq
+4. 5. Verify the Access Point:
+   * Use another device to find the Wi-Fi network named PiRobotAP.
+   * Connect using the password you set earlier.
+________________
+
+
+3. Install and Configure the Photo Server
+Install Python Libraries
+Update Python dependencies:
+bash
+CopyEdit
+sudo apt install -y python3-picamera2 python3-pip
+pip3 install flask flask-httpauth
+1. ________________
+
+
+Create the Python Server Script
+Open a new Python script:
+bash
+CopyEdit
+nano photo_server.py
+1. 2. Paste the following code:
+python
+CopyEdit
+import time
+import os
+from flask import Flask, send_from_directory
+from flask_httpauth import HTTPBasicAuth
+from werkzeug.security import generate_password_hash, check_password_hash
+from picamera2 import Picamera2
+
+
+# Flask app and authentication setup
+app = Flask(__name__)
+auth = HTTPBasicAuth()
+
+
+# Define users and hashed passwords
+users = {
+    "admin": generate_password_hash("your_secure_password"),
+    "user": generate_password_hash("your_user_password"),
+}
+
+
+@auth.verify_password
+def verify_password(username, password):
+    """Verify the username and password."""
+    if username in users and check_password_hash(users.get(username), password):
+        return username
+
+
+# Folder to save images
+IMAGE_FOLDER = "images"
+os.makedirs(IMAGE_FOLDER, exist_ok=True)  # Ensure the folder exists
+
+
+@app.route('/')
+@auth.login_required
+def home():
+    """Root route with authentication."""
+    return "Pi Robot Image Server. Access images at /images/<filename>"
+
+
+@app.route('/images/<filename>')
+@auth.login_required
+def serve_image(filename):
+    """Serve an image file with authentication."""
+    return send_from_directory(IMAGE_FOLDER, filename)
+
+
+# Initialize the camera
+picam2 = Picamera2()
+picam2.start()
+
+
+def capture_images(interval=5):
+    """Capture images every `interval` seconds."""
+    count = 0
+    try:
+        while True:
+            count += 1
+            filename = f"image_{count}.jpg"
+            filepath = os.path.join(IMAGE_FOLDER, filename)
+            picam2.capture_file(filepath)
+            print(f"Captured: {filename}")
+            time.sleep(interval)
+    except KeyboardInterrupt:
+        print("Stopping image capture...")
+
+
+try:
+    # Start the Flask server in a separate thread
+    from threading import Thread
+    print("Starting server...")
+    server_thread = Thread(target=app.run, kwargs={'host': '0.0.0.0', 'port': 5000}, daemon=True)
+    server_thread.start()
+
+
+    # Start capturing images
+    print("Starting image capture...")
+    capture_images(interval=5)
+except KeyboardInterrupt:
+    print("Exiting program...")
+finally:
+    picam2.stop()
+
+
+3. Save and exit (Ctrl+O, then Ctrl+X).
+________________
+
+
+Run the Script
+Start the Python server:
+bash
+CopyEdit
+python3 photo_server.py
+1. 2. The server will:
+   * Start capturing images every 5 seconds.
+   * Host a secured web server at http://192.168.4.1:5000.
+________________
+
+
+4. Access the Photo Server
+1. Connect to the Raspberry Pi Wi-Fi:
+   * Join the network PiRobotAP using the password you set.
+2. Access the Server:
+Open a browser and go to:
+arduino
+CopyEdit
+http://192.168.4.1:5000
+   *    * Enter the login credentials:
+      * Username: admin
+      * Password: your_secure_password.
+3. View Captured Images:
+Navigate to:
+arduino
+CopyEdit
+http://192.168.4.1:5000/images/image_1.jpg
+   * ________________
+
+
+Summary
+1. Raspberry Pi acts as a standalone Wi-Fi access point (PiRobotAP).
+2. The camera captures photos every 5 seconds.
+3. A Flask server hosts the photos with login protection.
+4. Devices can connect directly to the Pi and access the secured server.
+Let me know if you need further clarification or help testing this setup! 😊
