@@ -1,19 +1,20 @@
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 import os
 
-# Get the root directory of the file system
-root_directory = "/"
+# Set the directory you want to serve files from
+directory_to_serve = "/path/to/your/directory"
 
-# Change the working directory to the root of the filesystem
-os.chdir(root_directory)
+# Change the current working directory to the directory to serve
+os.chdir(directory_to_serve)
 
-# Set up the server to listen on all network interfaces (not just localhost)
-server_address = ('0.0.0.0', 8000)
+# Define the server's address and port
+server_address = ('0.0.0.0', 8000)  # 0.0.0.0 allows access from other devices
 
-# Create and start the HTTP server
+# Start the HTTP server
 httpd = HTTPServer(server_address, SimpleHTTPRequestHandler)
-print(f"Serving all files from '{root_directory}' on {server_address[0]}:{server_address[1]}")
-print("Accessible on the network via http://<your-ip>:8000")
+
+print(f"Serving files from {directory_to_serve} on http://{server_address[0]}:{server_address[1]}")
+print("Accessible from other devices using your local IP address (e.g., http://192.168.x.x:8000)")
 
 try:
     httpd.serve_forever()
