@@ -1,27 +1,28 @@
-from http.server import HTTPServer, SimpleHTTPRequestHandler
+from flask import Flask, send_from_directory
 import os
 
-# Path to the "Photo For Cam" folder
-directory_to_serve = "/home/pi/Desktop/Photo For Cam"  # Replace with your correct path
+app = Flask(__name__)
 
-# Verify the folder exists
+# Path to the directory you want to serve
+directory_to_serve = "/home/pi/Desktop"  # Replace with the folder you want to serve
+
+# Ensure the directory exists
 if not os.path.exists(directory_to_serve):
-    print(f"Error: The folder {directory_to_serve} does not exist.")
-    exit(1)
+    raise FileNotFoundError(f"The directory {directory_to_serve} does not exist!")
 
-# Change working directory to the folder
-os.chdir(directory_to_serve)
+@app.route('/')
+def list_files():
+    """Serve the directory index."""
+    return f"Serving files from: {directory_to_serve}"
 
-# Set up the server
-server_address = ('0.0.0.0', 8000)  # Accessible by other devices
-httpd = HTTPServer(server_address, SimpleHTTPRequestHandler)
+@app.route('/<path:filename>')
+def send_file(filename):
+    """Send a specific file from the directory."""
+    try:
+        return send_from_directory(directory_to_serve, filename)
+    except FileNotFoundError:
+        return "File not found", 404
 
-print(f"Serving files from {directory_to_serve}")
-print("Access it on the server's local browser: http://127.0.0.1:8000")
-print("Access it from other devices: http://<your-ip>:8000 (replace <your-ip> with your IP)")
-
-try:
-    httpd.serve_forever()
-except KeyboardInterrupt:
-    print("\nShutting down the server.")
-    httpd.server_close()
+if __name__ == '__main__':
+    # Use 0.0.0.0 to make the server accessible on your network
+    app.run(host='0.0.0.0', port=8000)
