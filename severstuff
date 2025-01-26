@@ -1,0 +1,33 @@
+from flask import Flask, send_from_directory
+import os
+
+app = Flask(__name__)
+
+# Path to the directory you want to serve
+directory_to_serve = "/home/pi/Desktop"  # Replace with the folder you want to serve
+
+# Ensure the directory exists
+if not os.path.exists(directory_to_serve):
+    raise FileNotFoundError(f"The directory {directory_to_serve} does not exist!")
+
+@app.route('/')
+def list_files():
+    """List all files in the Desktop directory."""
+    try:
+        files = os.listdir(directory_to_serve)  # Get the list of files
+        file_links = "<br>".join([f'<a href="/{file}">{file}</a>' for file in files])  # Create clickable links for each file
+        return f"Files in Desktop:<br>{file_links}"  # Display the list of files as links
+    except Exception as e:
+        return f"Error: {str(e)}"
+
+@app.route('/<path:filename>')
+def send_file(filename):
+    """Send a specific file from the Desktop directory."""
+    try:
+        return send_from_directory(directory_to_serve, filename)
+    except FileNotFoundError:
+        return f"File '{filename}' not found", 404
+
+if __name__ == '__main__':
+    # Run the server and make it accessible on the local network
+    app.run(host='192.168.1.160', port=5000)
