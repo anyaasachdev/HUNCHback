@@ -31,3 +31,13 @@ def send_file(filename):
 if __name__ == '__main__':
     # Run the server and make it accessible on the local network
     app.run(host='192.168.1.160', port=5000)
+
+
+
+
+import requests as req
+
+resp = req.get('http://192.168.1.160:5000/') #requests the web server that has the files
+fd = open('myfile', 'wb') #creates new file and opens it
+fd.write(resp.content) #writes the response of the webserver into the new file
+fd.close() #removes file from memory 
