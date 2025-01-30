@@ -1,0 +1,43 @@
+import smbus
+import math
+import time
+
+# MPU6050 Register
+power_mgmt_1 = 0x6b
+bus = smbus.SMBus(1)
+address = 0x68  # I2C address of MPU6050
+
+# Wake up MPU6050
+bus.write_byte_data(address, power_mgmt_1, 0)
+
+# Function to read accelerometer values
+def read_word_2c(reg):
+    val = (bus.read_byte_data(address, reg) << 8) + bus.read_byte_data(address, reg + 1)
+    return -((65535 - val) + 1) if val >= 0x8000 else val
+
+def get_acceleration():
+    accel_x = read_word_2c(0x3b) / 16384.0
+    accel_y = read_word_2c(0x3d) / 16384.0
+    accel_z = read_word_2c(0x3f) / 16384.0
+    return accel_x, accel_y, accel_z
+
+def get_total_acceleration():
+    x, y, z = get_acceleration()
+    return math.sqrt(x**2 + y**2 + z**2)  # Magnitude of acceleration
+
+def wait_for_ejection(threshold=2.5, check_interval=0.1):
+    """
+    Waits for an ejection event by detecting a sudden acceleration spike.
+    :param threshold: Acceleration spike threshold (g-force).
+    :param check_interval: Time (seconds) between checks.
+    """
+    print("Monitoring ejection status...")
+    baseline = get_total_acceleration()
+    
+    while True:
+        acceleration = get_total_acceleration()
+        if abs(acceleration - baseline) > threshold:
+            print("Ejection detected! Acceleration spike:", acceleration)
+            return  # Exit function once ejection is detected
+        
+        time.sleep(check_interval)
