@@ -34,6 +34,10 @@ try:
                 print("Moving forward...")
                 pwm1.ChangeDutyCycle(6)
                 pwm2.ChangeDutyCycle(9)
+            if str(distance) != 'None':
+                print("Moving forward...")
+                pwm1.ChangeDutyCycle(6)
+                pwm2.ChangeDutyCycle(9)
             else:
                 print("Obstacle detected! Turning...")
                 pwm1.ChangeDutyCycle(9)
