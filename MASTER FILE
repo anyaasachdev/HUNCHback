@@ -1,0 +1,120 @@
+import time
+import board
+import adafruit_vl53l1x
+import RPi.GPIO as GPIO
+import smbus
+import math
+from picamera2 import Picamera2
+from PIL import Image
+import datetime
+import atexit
+
+# GPIO Setup
+GPIO.setmode(GPIO.BCM)
+
+# Servo Motor Pins
+SERVO1_PIN = 6
+SERVO2_PIN = 17
+SERVO_Y_PIN = 33
+
+GPIO.setup(SERVO1_PIN, GPIO.OUT)
+GPIO.setup(SERVO2_PIN, GPIO.OUT)
+GPIO.setup(SERVO_Y_PIN, GPIO.OUT)
+
+pwm1 = GPIO.PWM(SERVO1_PIN, 50)
+pwm2 = GPIO.PWM(SERVO2_PIN, 50)
+servo_y = GPIO.PWM(SERVO_Y_PIN, 50)
+
+pwm1.start(7.5)
+pwm2.start(7.5)
+servo_y.start(7.5)
+
+# Time-of-Flight Sensor Setup
+i2c = board.I2C()
+vl53 = adafruit_vl53l1x.VL53L1X(i2c)
+vl53.distance_mode = 1
+vl53.timing_budget = 100
+vl53.start_ranging()
+
+# Gyroscope Setup
+power_mgmt_1 = 0x6b
+bus = smbus.SMBus(1)
+address = 0x68
+bus.write_byte_data(address, power_mgmt_1, 0)
+
+def read_word_2c(reg):
+    val = (bus.read_byte_data(address, reg) << 8) + bus.read_byte_data(address, reg + 1)
+    return -((65535 - val) + 1) if val >= 0x8000 else val
+
+def dist(a, b):
+    return math.sqrt((a * a) + (b * b))
+
+def get_y_rotation(x, y, z):
+    return -math.degrees(math.atan2(x, dist(y, z)))
+
+def map_angle_to_duty_cycle(angle):
+    return 7.5 + (angle / 90) * 5
+
+# Camera Setup
+picam2 = Picamera2()
+picam2.start()
+atexit.register(picam2.stop)
+
+interval = 5
+
+try:
+    count = 0
+    while True:
+        if vl53.data_ready:
+            distance = vl53.distance
+            print(f"Distance: {distance} cm")
+            vl53.clear_interrupt()
+            time.sleep(1.0)
+
+            if distance > 5:
+                print("Moving forward...")
+                pwm1.ChangeDutyCycle(6)
+                pwm2.ChangeDutyCycle(9)
+            else:
+                print("Obstacle detected! Turning...")
+                pwm1.ChangeDutyCycle(0)
+                pwm2.ChangeDutyCycle(0)
+                time.sleep(1)
+                pwm1.ChangeDutyCycle(9)
+                pwm2.ChangeDutyCycle(6)
+                time.sleep(1)
+
+            vl53.clear_interrupt()
+            time.sleep(0.5)
+
+        accel_x = read_word_2c(0x3b)
+        accel_y = read_word_2c(0x3d)
+        accel_z = read_word_2c(0x3f)
+
+        accel_x_scaled = accel_x / 16384.0
+        accel_y_scaled = accel_y / 16384.0
+        accel_z_scaled = accel_z / 16384.0
+
+        y_rotation = get_y_rotation(accel_x_scaled, accel_y_scaled, accel_z_scaled)
+        duty_cycle_y = map_angle_to_duty_cycle(y_rotation)
+        servo_y.ChangeDutyCycle(duty_cycle_y)
+
+        print(f"Y Rotation: {y_rotation:.2f}°, Servo Y Duty: {duty_cycle_y:.2f}%")
+
+        count += 1
+        timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
+        filename = f"test_{timestamp}_{count}.jpg"
+        picam2.capture_file(filename)
+        print(f"Captured {filename}")
+        
+        img = Image.open(filename)
+        img.show()
+        
+        time.sleep(interval)
+
+except KeyboardInterrupt:
+    print("\nExiting program...")
+    pwm1.stop()
+    pwm2.stop()
+    servo_y.stop()
+    GPIO.cleanup()
