@@ -9,42 +9,46 @@ from PIL import Image
 import datetime
 import atexit
 
-# GPIO Setup
+# GPIO setup
 GPIO.setmode(GPIO.BCM)
 
-# Servo Motor Pins
+# Servo pins
 SERVO1_PIN = 6
 SERVO2_PIN = 17
-SERVO_Y_PIN = 33
+SERVO_Y_PIN = 13  # Servo for Y-axis (Gyro control)
 
+# Setup servos
 GPIO.setup(SERVO1_PIN, GPIO.OUT)
 GPIO.setup(SERVO2_PIN, GPIO.OUT)
 GPIO.setup(SERVO_Y_PIN, GPIO.OUT)
 
+# 50Hz frequency
 pwm1 = GPIO.PWM(SERVO1_PIN, 50)
 pwm2 = GPIO.PWM(SERVO2_PIN, 50)
 servo_y = GPIO.PWM(SERVO_Y_PIN, 50)
 
+# Start at neutral position
 pwm1.start(7.5)
 pwm2.start(7.5)
 servo_y.start(7.5)
 
-# Time-of-Flight Sensor Setup
+# Distance Sensor Setup
 i2c = board.I2C()
 vl53 = adafruit_vl53l1x.VL53L1X(i2c)
 vl53.distance_mode = 1
 vl53.timing_budget = 100
 vl53.start_ranging()
 
-# Gyroscope Setup
+# Gyroscope setup
 power_mgmt_1 = 0x6b
+power_mgmt_2 = 0x6c
 bus = smbus.SMBus(1)
-address = 0x68
-bus.write_byte_data(address, power_mgmt_1, 0)
+address = 0x68  # I2C address of MPU6050
+bus.write_byte_data(address, power_mgmt_1, 0)  # Wake up MPU6050
 
 def read_word_2c(reg):
     val = (bus.read_byte_data(address, reg) << 8) + bus.read_byte_data(address, reg + 1)
-    return -((65535 - val) + 1) if val >= 0x8000 else val
+    return val - 65536 if val >= 0x8000 else val
 
 def dist(a, b):
     return math.sqrt((a * a) + (b * b))
@@ -55,16 +59,16 @@ def get_y_rotation(x, y, z):
 def map_angle_to_duty_cycle(angle):
     return 7.5 + (angle / 90) * 5
 
-# Camera Setup
+# Camera setup
 picam2 = Picamera2()
 picam2.start()
 atexit.register(picam2.stop)
-
 interval = 5
 
 try:
     count = 0
     while True:
+        # Read distance sensor
         if vl53.data_ready:
             distance = vl53.distance
             print(f"Distance: {distance} cm")
@@ -84,36 +88,25 @@ try:
                 pwm2.ChangeDutyCycle(6)
                 time.sleep(1)
 
-            vl53.clear_interrupt()
-            time.sleep(0.5)
-
-        accel_x = read_word_2c(0x3b)
-        accel_y = read_word_2c(0x3d)
-        accel_z = read_word_2c(0x3f)
-
-        accel_x_scaled = accel_x / 16384.0
-        accel_y_scaled = accel_y / 16384.0
-        accel_z_scaled = accel_z / 16384.0
-
-        y_rotation = get_y_rotation(accel_x_scaled, accel_y_scaled, accel_z_scaled)
+        # Read gyroscope
+        accel_x = read_word_2c(0x3b) / 16384.0
+        accel_y = read_word_2c(0x3d) / 16384.0
+        accel_z = read_word_2c(0x3f) / 16384.0
+        y_rotation = get_y_rotation(accel_x, accel_y, accel_z)
         duty_cycle_y = map_angle_to_duty_cycle(y_rotation)
         servo_y.ChangeDutyCycle(duty_cycle_y)
+        print(f"Y Rotation: {y_rotation:.2f}°")
 
-        print(f"Y Rotation: {y_rotation:.2f}°, Servo Y Duty: {duty_cycle_y:.2f}%")
-
+        # Capture image
         count += 1
         timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
         filename = f"test_{timestamp}_{count}.jpg"
         picam2.capture_file(filename)
         print(f"Captured {filename}")
-        
-        img = Image.open(filename)
-        img.show()
-        
-        time.sleep(interval)
 
+        time.sleep(interval)
 except KeyboardInterrupt:
-    print("\nExiting program...")
+    print("\nStopping program...")
     pwm1.stop()
     pwm2.stop()
     servo_y.stop()
