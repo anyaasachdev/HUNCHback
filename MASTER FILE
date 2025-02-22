@@ -8,9 +8,6 @@ from picamera2 import Picamera2
 from PIL import Image
 import datetime
 import atexit
-from flask import Flask, send_from_directory
-import os
-import requests as req
 
 # GPIO setup
 GPIO.setmode(GPIO.BCM)
@@ -68,32 +65,6 @@ picam2.start()
 atexit.register(picam2.stop)
 interval = 5
 
-# Flask app setup
-directory_to_serve = "/home/pi/Desktop"  # Replace with the folder you want to serve
-app = Flask(__name__)
-
-if not os.path.exists(directory_to_serve):
-    raise FileNotFoundError(f"The directory {directory_to_serve} does not exist!")
-
-@app.route('/')
-def list_files():
-    try:
-        files = os.listdir(directory_to_serve)
-        file_links = "<br>".join([f'<a href="/{file}">{file}</a>' for file in files])
-        return f"Files in Desktop:<br>{file_links}"
-    except Exception as e:
-        return f"Error: {str(e)}"
-
-@app.route('/<path:filename>')
-def send_file(filename):
-    try:
-        return send_from_directory(directory_to_serve, filename)
-    except FileNotFoundError:
-        return f"File '{filename}' not found", 404
-
-if __name__ == '__main__':
-    app.run(host='192.168.1.160', port=5000)
-
 try:
     count = 0
     while True:
@@ -134,16 +105,9 @@ try:
         print(f"Captured {filename}")
 
         time.sleep(interval)
-
-        # Request file from Flask server
-        resp = req.get('http://192.168.1.160:5000/')
-        with open('myfile', 'wb') as fd:
-            fd.write(resp.content)
-            print("Downloaded file from server")
-
 except KeyboardInterrupt:
     print("\nStopping program...")
     pwm1.stop()
     pwm2.stop()
     servo_y.stop()
-    GPIO.cleanup()
+    GPIO.cleanup()	
