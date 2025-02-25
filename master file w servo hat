@@ -1,25 +1,29 @@
 import time
 import board
 import adafruit_vl53l1x
+import busio
 import smbus
 import math
+from adafruit_servokit import ServoKit
 from picamera2 import Picamera2
-from PIL import Image
 import datetime
 import atexit
-from adafruit_servokit import ServoKit
 
-# Initialize PCA9685 Servo Hat
+# I2C setup for ServoHat
+i2c = busio.I2C(board.SCL, board.SDA)
 kit = ServoKit(channels=16)
 
-# Servo channels (match these with your hat connections)
-SERVO1_CHANNEL = 0  # Change these values as needed
-SERVO2_CHANNEL = 1
-SERVO_Y_CHANNEL = 2  # Servo for Y-axis (Gyro control)
+# Setup ServoHat servos
+# Servo 1 and 2 for movement
+kit.continuous_servo[1].throttle = 0  # Initial state (not moving)
+kit.continuous_servo[2].throttle = 0  # Initial state (not moving)
+
+# Servo Y-axis (Gyro control)
+kit.servo[0].angle = 90  # Initial neutral position
 
 # Distance Sensor Setup
-i2c = board.I2C()
-vl53 = adafruit_vl53l1x.VL53L1X(i2c)
+i2c_sensor = board.I2C()
+vl53 = adafruit_vl53l1x.VL53L1X(i2c_sensor)
 vl53.distance_mode = 1
 vl53.timing_budget = 100
 vl53.start_ranging()
@@ -41,8 +45,9 @@ def dist(a, b):
 def get_y_rotation(x, y, z):
     return -math.degrees(math.atan2(x, dist(y, z)))
 
-def map_angle_to_servo(angle):
-    return max(0, min(180, (angle + 90)))  # Map -90 to 90 degrees -> 0 to 180
+def map_angle_to_duty_cycle(angle):
+    # Mapping angle for ServoHat (Adjust based on servo specs)
+    return angle  # ServoKit uses angle directly in the range of 0-180
 
 # Camera setup
 picam2 = Picamera2()
@@ -62,15 +67,15 @@ try:
 
             if distance > 5:
                 print("Moving forward...")
-                kit.continuous_servo[SERVO1_CHANNEL].throttle = -1
-                kit.continuous_servo[SERVO2_CHANNEL].throttle = 1
+                kit.continuous_servo[1].throttle = 1  # Move forward
+                kit.continuous_servo[2].throttle = 1  # Move forward
             else:
                 print("Obstacle detected! Turning...")
-                kit.continuous_servo[SERVO1_CHANNEL].throttle = 0
-                kit.continuous_servo[SERVO2_CHANNEL].throttle = 0
+                kit.continuous_servo[1].throttle = 0  # Stop servo 1
+                kit.continuous_servo[2].throttle = 0  # Stop servo 2
                 time.sleep(1)
-                kit.continuous_servo[SERVO1_CHANNEL].throttle = 1
-                kit.continuous_servo[SERVO2_CHANNEL].throttle = -1
+                kit.continuous_servo[1].throttle = -1  # Reverse servo 1
+                kit.continuous_servo[2].throttle = -1  # Reverse servo 2
                 time.sleep(1)
 
         # Read gyroscope
@@ -78,9 +83,9 @@ try:
         accel_y = read_word_2c(0x3d) / 16384.0
         accel_z = read_word_2c(0x3f) / 16384.0
         y_rotation = get_y_rotation(accel_x, accel_y, accel_z)
-        servo_angle_y = map_angle_to_servo(y_rotation)
-        kit.servo[SERVO_Y_CHANNEL].angle = servo_angle_y
-        print(f"Y Rotation: {y_rotation:.2f}°, Servo Angle: {servo_angle_y}°")
+        angle_y = map_angle_to_duty_cycle(y_rotation)
+        kit.servo[0].angle = angle_y  # Adjust the Y-axis servo position
+        print(f"Y Rotation: {y_rotation:.2f}°")
 
         # Capture image
         count += 1
@@ -92,6 +97,7 @@ try:
         time.sleep(interval)
 except KeyboardInterrupt:
     print("\nStopping program...")
-    kit.continuous_servo[SERVO1_CHANNEL].throttle = 0
-    kit.continuous_servo[SERVO2_CHANNEL].throttle = 0
-    kit.servo[SERVO_Y_CHANNEL].angle = None  # Set to None to disable holding position
+    kit.continuous_servo[1].throttle = 0
+    kit.continuous_servo[2].throttle = 0
+    kit.servo[0].angle = 90  # Neutral position for Y-axis servo
+    picam2.stop()  # Stop the camera
