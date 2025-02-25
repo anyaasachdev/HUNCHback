@@ -1,70 +1,18 @@
+# SPDX-FileCopyrightText: 2021 ladyada for Adafruit Industries
+# SPDX-License-Identifier: MIT
+
+"""Simple test for a standard servo on channel 0 and a continuous rotation servo on channel 1."""
 import time
 from adafruit_servokit import ServoKit
 
-# Initialize PCA9685 Servo Hat (16 channels)
-kit = ServoKit(channels=16)
+# Set channels to the number of servo channels on your kit.
+# 8 for FeatherWing, 16 for Shield/HAT/Bonnet.
+kit = ServoKit(channels=8)
 
-# Define servo channels
-CR_SERVO_1 = 0  # Continuous Rotation Servo 1
-CR_SERVO_2 = 4  # Continuous Rotation Servo 2
-ANGLE_SERVO = 8  # 180-degree Servo
-
-# Set actuation range for 180-degree servo
-kit.servo[ANGLE_SERVO].actuation_range = 180
-
-print("Starting servo test...")
-
-try:
-    # Sweep 180-degree servo back and forth
-    print("Sweeping 180-degree servo...")
-    for angle in range(0, 181, 10):  # 0° to 180° in steps of 10
-        kit.servo[ANGLE_SERVO].angle = angle
-        print(f"Moved to {angle}°")
-        time.sleep(0.1)
-
-    for angle in range(180, -1, -10):  # 180° to 0° in steps of 10
-        kit.servo[ANGLE_SERVO].angle = angle
-        print(f"Moved to {angle}°")
-        time.sleep(0.1)
-
-    print("Testing continuous rotation servos...")
-    
-    # Gradually increase throttle forward
-    for throttle in [0, 0.2, 0.5, 1]:  
-        kit.continuous_servo[CR_SERVO_1].throttle = throttle
-        kit.continuous_servo[CR_SERVO_2].throttle = -throttle
-        print(f"Throttle: {throttle}")
-        time.sleep(0.5)
-
-    # Gradually decrease throttle to stop
-    for throttle in [1, 0.5, 0.2, 0]:
-        kit.continuous_servo[CR_SERVO_1].throttle = throttle
-        kit.continuous_servo[CR_SERVO_2].throttle = -throttle
-        print(f"Throttle: {throttle}")
-        time.sleep(0.5)
-
-    # Reverse direction gradually
-    for throttle in [0, -0.2, -0.5, -1]:  
-        kit.continuous_servo[CR_SERVO_1].throttle = throttle
-        kit.continuous_servo[CR_SERVO_2].throttle = -throttle
-        print(f"Throttle: {throttle}")
-        time.sleep(0.5)
-
-    # Gradually stop again
-    for throttle in [-1, -0.5, -0.2, 0]:
-        kit.continuous_servo[CR_SERVO_1].throttle = throttle
-        kit.continuous_servo[CR_SERVO_2].throttle = -throttle
-        print(f"Throttle: {throttle}")
-        time.sleep(0.5)
-
-    print("Servos should be STOPPED.")
-
-except KeyboardInterrupt:
-    print("\nTest interrupted.")
-
-finally:
-    # Ensure all servos stop
-    kit.continuous_servo[CR_SERVO_1].throttle = 0
-    kit.continuous_servo[CR_SERVO_2].throttle = 0
-    kit.servo[ANGLE_SERVO].angle = None  
-    print("All servos stopped.")
+kit.servo[0].angle = 180
+kit.continuous_servo[1].throttle = 1
+time.sleep(1)
+kit.continuous_servo[1].throttle = -1
+time.sleep(1)
+kit.servo[0].angle = 0
+kit.continuous_servo[1].throttle = 0
