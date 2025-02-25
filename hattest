@@ -1,0 +1,35 @@
+import time
+from adafruit_servokit import ServoKit
+
+# Initialize PCA9685 with 16 channels
+kit = ServoKit(channels=16)
+
+# Servo channels (Update these if needed)
+SERVO1_CHANNEL = 0
+SERVO2_CHANNEL = 1
+SERVO_Y_CHANNEL = 2  # Optional
+
+# Function to sweep servo
+def test_servo(channel):
+    print(f"Testing Servo {channel}...")
+    for angle in range(0, 180, 10):  # Move from 0° to 180°
+        kit.servo[channel].angle = angle
+        time.sleep(0.2)
+    for angle in range(180, 0, -10):  # Move from 180° to 0°
+        kit.servo[channel].angle = angle
+        time.sleep(0.2)
+    print(f"Servo {channel} test complete!")
+
+# Run servo test
+try:
+    test_servo(SERVO1_CHANNEL)
+    test_servo(SERVO2_CHANNEL)
+    test_servo(SERVO_Y_CHANNEL)  # If using a third servo
+    print("✅ Servo test complete!")
+except KeyboardInterrupt:
+    print("\nStopping...")
+finally:
+    # Turn off servos
+    kit.servo[SERVO1_CHANNEL].angle = None
+    kit.servo[SERVO2_CHANNEL].angle = None
+    kit.servo[SERVO_Y_CHANNEL].angle = None
