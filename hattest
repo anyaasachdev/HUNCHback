@@ -1,35 +1,55 @@
 import time
 from adafruit_servokit import ServoKit
 
-# Initialize PCA9685 with 16 channels
+# Initialize the Servo Hat (PCA9685)
 kit = ServoKit(channels=16)
 
-# Servo channels (Update these if needed)
-SERVO1_CHANNEL = 0
-SERVO2_CHANNEL = 1
-SERVO_Y_CHANNEL = 2  # Optional
+# Update these based on your setup:
+CR_SERVO_1 = 0  # Continuous Rotation Servo 1
+CR_SERVO_2 = 1  # Continuous Rotation Servo 2
+ANGLE_SERVO = 2  # 180-degree Servo
 
-# Function to sweep servo
-def test_servo(channel):
-    print(f"Testing Servo {channel}...")
-    for angle in range(0, 180, 10):  # Move from 0° to 180°
-        kit.servo[channel].angle = angle
-        time.sleep(0.2)
-    for angle in range(180, 0, -10):  # Move from 180° to 0°
-        kit.servo[channel].angle = angle
-        time.sleep(0.2)
-    print(f"Servo {channel} test complete!")
+# Function to test continuous rotation servos
+def test_continuous_servo(channel):
+    print(f"Testing Continuous Rotation Servo {channel}...")
 
-# Run servo test
+    # Full forward
+    kit.continuous_servo[channel].throttle = 1  
+    time.sleep(2)
+
+    # Stop
+    kit.continuous_servo[channel].throttle = 0  
+    time.sleep(1)
+
+    # Full reverse
+    kit.continuous_servo[channel].throttle = -1  
+    time.sleep(2)
+
+    # Stop
+    kit.continuous_servo[channel].throttle = 0  
+    print(f"Continuous Servo {channel} test complete!")
+
+# Function to test 180-degree servo
+def test_angle_servo(channel):
+    print(f"Testing 180° Servo {channel}...")
+
+    for angle in [0, 90, 180, 90, 0]:  # Move between 0°, 90°, and 180°
+        kit.servo[channel].angle = angle
+        print(f"Moved to {angle}°")
+        time.sleep(1)
+
+    print(f"180° Servo {channel} test complete!")
+
+# Run tests
 try:
-    test_servo(SERVO1_CHANNEL)
-    test_servo(SERVO2_CHANNEL)
-    test_servo(SERVO_Y_CHANNEL)  # If using a third servo
-    print("✅ Servo test complete!")
+    test_continuous_servo(CR_SERVO_1)
+    test_continuous_servo(CR_SERVO_2)
+    test_angle_servo(ANGLE_SERVO)
+    print("✅ All servos tested!")
 except KeyboardInterrupt:
     print("\nStopping...")
 finally:
-    # Turn off servos
-    kit.servo[SERVO1_CHANNEL].angle = None
-    kit.servo[SERVO2_CHANNEL].angle = None
-    kit.servo[SERVO_Y_CHANNEL].angle = None
+    # Stop all servos
+    kit.continuous_servo[CR_SERVO_1].throttle = 0
+    kit.continuous_servo[CR_SERVO_2].throttle = 0
+    kit.servo[ANGLE_SERVO].angle = None  # Release standard servo
