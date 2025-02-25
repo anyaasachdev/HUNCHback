@@ -1,19 +1,19 @@
 import time
 from adafruit_servokit import ServoKit
 
-# Initialize the Servo Hat (PCA9685)
+# Initialize PCA9685 Servo Hat
 kit = ServoKit(channels=16)
 
-# Your servo channels
+# Servo channels (match these with your setup)
 CR_SERVO_1 = 0  # Continuous Rotation Servo 1
 CR_SERVO_2 = 4  # Continuous Rotation Servo 2
-ANGLE_SERVO = 8  # 180-degree Servo
+ANGLE_SERVO = 8  # 180-degree Standard Servo
 
-# Function to test continuous rotation servos
 def test_continuous_servo(channel):
-    print(f"Testing Continuous Rotation Servo {channel}...")
+    """Test continuous rotation servo: Forward, Stop, Reverse."""
+    print(f"Testing Continuous Rotation Servo on channel {channel}...")
 
-    # Full forward
+    # Move forward
     kit.continuous_servo[channel].throttle = 1  
     time.sleep(2)
 
@@ -21,31 +21,31 @@ def test_continuous_servo(channel):
     kit.continuous_servo[channel].throttle = 0  
     time.sleep(1)
 
-    # Full reverse
+    # Move backward
     kit.continuous_servo[channel].throttle = -1  
     time.sleep(2)
 
     # Stop
     kit.continuous_servo[channel].throttle = 0  
-    print(f"Continuous Servo {channel} test complete!")
+    print(f"Continuous Rotation Servo {channel} test complete.")
 
-# Function to test 180-degree servo
 def test_angle_servo(channel):
-    print(f"Testing 180° Servo {channel}...")
+    """Test 180-degree servo: Moves to 0°, 90°, 180°, then back."""
+    print(f"Testing 180° Servo on channel {channel}...")
 
-    for angle in [0, 90, 180, 90, 0]:  # Move between 0°, 90°, and 180°
+    for angle in [0, 90, 180, 90, 0]:  
         kit.servo[channel].angle = angle
         print(f"Moved to {angle}°")
         time.sleep(1)
 
-    print(f"180° Servo {channel} test complete!")
+    print(f"180° Servo {channel} test complete.")
 
 # Run tests
 try:
     test_continuous_servo(CR_SERVO_1)
     test_continuous_servo(CR_SERVO_2)
     test_angle_servo(ANGLE_SERVO)
-    print("✅ All servos tested!")
+    print("All servos tested successfully.")
 except KeyboardInterrupt:
     print("\nStopping...")
 finally:
