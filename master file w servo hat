@@ -1,0 +1,97 @@
+import time
+import board
+import adafruit_vl53l1x
+import smbus
+import math
+from picamera2 import Picamera2
+from PIL import Image
+import datetime
+import atexit
+from adafruit_servokit import ServoKit
+
+# Initialize PCA9685 Servo Hat
+kit = ServoKit(channels=16)
+
+# Servo channels (match these with your hat connections)
+SERVO1_CHANNEL = 0  # Change these values as needed
+SERVO2_CHANNEL = 1
+SERVO_Y_CHANNEL = 2  # Servo for Y-axis (Gyro control)
+
+# Distance Sensor Setup
+i2c = board.I2C()
+vl53 = adafruit_vl53l1x.VL53L1X(i2c)
+vl53.distance_mode = 1
+vl53.timing_budget = 100
+vl53.start_ranging()
+
+# Gyroscope setup
+power_mgmt_1 = 0x6b
+power_mgmt_2 = 0x6c
+bus = smbus.SMBus(1)
+address = 0x68  # I2C address of MPU6050
+bus.write_byte_data(address, power_mgmt_1, 0)  # Wake up MPU6050
+
+def read_word_2c(reg):
+    val = (bus.read_byte_data(address, reg) << 8) + bus.read_byte_data(address, reg + 1)
+    return val - 65536 if val >= 0x8000 else val
+
+def dist(a, b):
+    return math.sqrt((a * a) + (b * b))
+
+def get_y_rotation(x, y, z):
+    return -math.degrees(math.atan2(x, dist(y, z)))
+
+def map_angle_to_servo(angle):
+    return max(0, min(180, (angle + 90)))  # Map -90 to 90 degrees -> 0 to 180
+
+# Camera setup
+picam2 = Picamera2()
+picam2.start()
+atexit.register(picam2.stop)
+interval = 5
+
+try:
+    count = 0
+    while True:
+        # Read distance sensor
+        if vl53.data_ready:
+            distance = vl53.distance
+            print(f"Distance: {distance} cm")
+            vl53.clear_interrupt()
+            time.sleep(1.0)
+
+            if distance > 5:
+                print("Moving forward...")
+                kit.continuous_servo[SERVO1_CHANNEL].throttle = -1
+                kit.continuous_servo[SERVO2_CHANNEL].throttle = 1
+            else:
+                print("Obstacle detected! Turning...")
+                kit.continuous_servo[SERVO1_CHANNEL].throttle = 0
+                kit.continuous_servo[SERVO2_CHANNEL].throttle = 0
+                time.sleep(1)
+                kit.continuous_servo[SERVO1_CHANNEL].throttle = 1
+                kit.continuous_servo[SERVO2_CHANNEL].throttle = -1
+                time.sleep(1)
+
+        # Read gyroscope
+        accel_x = read_word_2c(0x3b) / 16384.0
+        accel_y = read_word_2c(0x3d) / 16384.0
+        accel_z = read_word_2c(0x3f) / 16384.0
+        y_rotation = get_y_rotation(accel_x, accel_y, accel_z)
+        servo_angle_y = map_angle_to_servo(y_rotation)
+        kit.servo[SERVO_Y_CHANNEL].angle = servo_angle_y
+        print(f"Y Rotation: {y_rotation:.2f}°, Servo Angle: {servo_angle_y}°")
+
+        # Capture image
+        count += 1
+        timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
+        filename = f"test_{timestamp}_{count}.jpg"
+        picam2.capture_file(filename)
+        print(f"Captured {filename}")
+
+        time.sleep(interval)
+except KeyboardInterrupt:
+    print("\nStopping program...")
+    kit.continuous_servo[SERVO1_CHANNEL].throttle = 0
+    kit.continuous_servo[SERVO2_CHANNEL].throttle = 0
+    kit.servo[SERVO_Y_CHANNEL].angle = None  # Set to None to disable holding position
