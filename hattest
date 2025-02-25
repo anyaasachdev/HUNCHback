@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: 2021 ladyada for Adafruit Industries
 # SPDX-License-Identifier: MIT
 
-"""Simple test for a standard servo on channel 0 and a continuous rotation servo on channel 1."""
+"""Simple test for a standard servo on channel 0 and continuous rotation servos on channels 1 and 2."""
 import time
 from adafruit_servokit import ServoKit
 
@@ -11,8 +11,14 @@ kit = ServoKit(channels=8)
 
 kit.servo[0].angle = 180
 kit.continuous_servo[1].throttle = 1
+kit.continuous_servo[2].throttle = 1  # Added continuous rotation servo on channel 2
 time.sleep(1)
+
 kit.continuous_servo[1].throttle = -1
+kit.continuous_servo[2].throttle = -1  # Reverse direction on channel 2
 time.sleep(1)
+
 kit.servo[0].angle = 0
 kit.continuous_servo[1].throttle = 0
+kit.continuous_servo[2].throttle = 0  # Stop channel 2
+
