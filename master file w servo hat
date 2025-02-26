@@ -17,6 +17,8 @@ kit = ServoKit(channels=16)
 # Servo 1 and 2 for movement
 kit.continuous_servo[1].throttle = 0  # Initial state (not moving)
 kit.continuous_servo[2].throttle = 0  # Initial state (not moving)
+kit.continuous_servo[3].throttle = 0  # Initial state (not moving)
+kit.continuous_servo[4].throttle = 0  # Initial state (not moving)
 
 # Servo Y-axis (Gyro control)
 kit.servo[0].angle = 90  # Initial neutral position
@@ -67,15 +69,22 @@ try:
 
             if distance > 5:
                 print("Moving forward...")
-                kit.continuous_servo[1].throttle = 1  # Move forward
-                kit.continuous_servo[2].throttle = 1  # Move forward
+                kit.continuous_servo[1].throttle = 1  # Move for kit.continuous_servo[1].throttle = 1  # Move forward
+                kit.continuous_servo[2].throttle = 1  # Move forwardward
+                kit.continuous_servo[3].throttle = 1  # Move forward
+                kit.continuous_servo[4].throttle = 1 
+                
             else:
                 print("Obstacle detected! Turning...")
                 kit.continuous_servo[1].throttle = 0  # Stop servo 1
-                kit.continuous_servo[2].throttle = 0  # Stop servo 2
+                kit.continuous_servo[2].throttle = 0 # Stop servo 2_
+                kit.continuous_servo[3].throttle = 0
+                kit.continuous_servo[4].throttle
                 time.sleep(1)
                 kit.continuous_servo[1].throttle = -1  # Reverse servo 1
-                kit.continuous_servo[2].throttle = -1  # Reverse servo 2
+                kit.continuous_servo[2].throttle = -1  # Reverse servo 2oo
+                kit.continuous_servo[3].throttle = -1
+                kit.continuous_servo[4].throttle = -1
                 time.sleep(1)
 
         # Read gyroscope
