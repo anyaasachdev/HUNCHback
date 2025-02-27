@@ -1,0 +1,77 @@
+import time
+import board
+import busio
+import smbus
+import math
+from adafruit_servokit import ServoKit
+import datetime
+import atexit
+
+# I2C setup for ServoHat
+i2c = busio.I2C(board.SCL, board.SDA)
+kit = ServoKit(channels=16)
+
+# Setup ServoHat servos
+# Servo 1 and 2 for movement
+kit.continuous_servo[1].throttle = 0  # Initial state (not moving)
+kit.continuous_servo[2].throttle = 0  # Initial state (not moving)
+kit.continuous_servo[3].throttle = 0  # Initial state (not moving)
+kit.continuous_servo[4].throttle = 0  # Initial state (not moving)
+time.sleep(5)
+kit.continuous_servo[1].throttle = 1  # Initial state (not moving)
+kit.continuous_servo[2].throttle = -1  # Initial state (not moving)
+kit.continuous_servo[3].throttle = 1  # Initial state (not moving)
+kit.continuous_servo[4].throttle = -1  # Initial state (not moving)
+time.sleep(5)
+
+
+# Servo Y-axis (Gyro control)
+kit.servo[0].angle = 90  # Initial neutral position
+
+
+# Gyroscope setup
+power_mgmt_1 = 0x6b
+power_mgmt_2 = 0x6c
+bus = smbus.SMBus(1)
+address = 0x68  # I2C address of MPU6050
+bus.write_byte_data(address, power_mgmt_1, 0)  # Wake up MPU6050
+
+def read_word_2c(reg):
+    val = (bus.read_byte_data(address, reg) << 8) + bus.read_byte_data(address, reg + 1)
+    return val - 65536 if val >= 0x8000 else val
+
+def dist(a, b):
+    return math.sqrt((a * a) + (b * b))
+
+def get_y_rotation(x, y, z):
+    return -math.degrees(math.atan2(x, dist(y, z)))
+
+def map_angle_to_duty_cycle(angle):
+    # Mapping angle for ServoHat (Adjust based on servo specs)
+    return angle  # ServoKit uses angle directly in the range of 0-180
+
+try:
+    while True:
+        # Read gyroscope
+        accel_x = read_word_2c(0x3b) / 16384.0
+        accel_y = read_word_2c(0x3d) / 16384.0
+        accel_z = read_word_2c(0x3f) / 16384.0
+        y_rotation = get_y_rotation(accel_x, accel_y, accel_z)
+        angle_y = map_angle_to_duty_cycle(y_rotation)
+        kit.servo[0].angle = angle_y  # Adjust the Y-axis servo position
+        print(f"Y Rotation: {y_rotation:.2f}°")
+
+        # Capture image
+        count += 1
+        timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
+        filename = f"test_{timestamp}_{count}.jpg"
+        picam2.capture_file(filename)
+        print(f"Captured {filename}")
+        time.sleep(interval)
+except KeyboardInterrupt:
+    print("\nStopping program...")
+    kit.continuous_servo[1].throttle = 0
+    kit.continuous_servo[2].throttle = 0
+    kit.continuous_servo[3].throttle = 0
+    kit.continuous_servo[4].throttle = 0
+    kit.servo[0].angle = 90  # Neutral position for Y-axis servo
